@@ -2,7 +2,7 @@ import { info, isDebug } from '@actions/core';
 import { getExecOutput } from '@actions/exec';
 import { which } from '@actions/io';
 
-import { BuildInfo, BuildStatus } from './expo';
+import { BuildInfo, BuildStatus, normalizeBuildInfo } from './expo';
 
 export async function getBuildInfoForCurrentFingerprintAsync({
   platform,
@@ -148,5 +148,5 @@ export async function getBuildInfoWithFingerprintAsync({
     return isValidStatus && isValidExpiry;
   });
 
-  return buildsThatAreValid[0] ?? null;
+  return buildsThatAreValid[0] ? normalizeBuildInfo(buildsThatAreValid[0]) : null;
 }

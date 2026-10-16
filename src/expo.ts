@@ -56,6 +56,28 @@ export type BuildInfo = {
   status: BuildStatus;
 };
 
+type EasBuildInfo =
+  | BuildInfo
+  | (Omit<BuildInfo, 'project' | 'channel' | 'runtimeVersion'> & {
+      app: BuildInfo['project'];
+      updateChannel?: { name: string } | null;
+      runtime?: { version: string } | null;
+    });
+
+/** Normalize the build JSON returned by EAS CLI 22+ to the existing action format. */
+export function normalizeBuildInfo(build: EasBuildInfo): BuildInfo {
+  if ('project' in build) {
+    return build;
+  }
+
+  return {
+    ...build,
+    project: build.app,
+    channel: build.updateChannel?.name ?? '',
+    runtimeVersion: build.runtime?.version,
+  };
+}
+
 export const appPlatformDisplayNames: Record<AppPlatform, string> = {
   [AppPlatform.Android]: 'Android',
   [AppPlatform.Ios]: 'iOS',
@@ -154,7 +176,7 @@ export async function easBuild(cmd: Command): Promise<BuildInfo[]> {
     throw new Error(`Could not run command eas build`, { cause: error });
   }
 
-  return JSON.parse(stdout);
+  return JSON.parse(stdout).map(normalizeBuildInfo);
 }
 
 /**
@@ -186,7 +208,7 @@ export async function createEasBuildFromRawCommandAsync(
     throw new Error(`Could not run command eas build`, { cause: error });
   }
 
-  return JSON.parse(stdout);
+  return JSON.parse(stdout).map(normalizeBuildInfo);
 }
 
 /**
@@ -216,7 +238,7 @@ export async function queryEasBuildInfoAsync(
         silent: true,
       }
     );
-    return JSON.parse(stdout);
+    return normalizeBuildInfo(JSON.parse(stdout));
   } catch (error: unknown) {
     info(`Failed to query eas build ${buildId}: ${String(error)}`);
   }

@@ -98364,6 +98364,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.appPlatformEmojis = exports.appPlatformDisplayNames = exports.BuildStatus = exports.AppPlatform = void 0;
+exports.normalizeBuildInfo = normalizeBuildInfo;
 exports.parseCommand = parseCommand;
 exports.authenticate = authenticate;
 exports.projectOwner = projectOwner;
@@ -98399,6 +98400,18 @@ var BuildStatus;
     BuildStatus["Finished"] = "FINISHED";
     BuildStatus["Canceled"] = "CANCELED";
 })(BuildStatus || (exports.BuildStatus = BuildStatus = {}));
+/** Normalize the build JSON returned by EAS CLI 22+ to the existing action format. */
+function normalizeBuildInfo(build) {
+    if ('project' in build) {
+        return build;
+    }
+    return {
+        ...build,
+        project: build.app,
+        channel: build.updateChannel?.name ?? '',
+        runtimeVersion: build.runtime?.version,
+    };
+}
 exports.appPlatformDisplayNames = {
     [AppPlatform.Android]: 'Android',
     [AppPlatform.Ios]: 'iOS',
@@ -98481,7 +98494,7 @@ async function easBuild(cmd) {
     catch (error) {
         throw new Error(`Could not run command eas build`, { cause: error });
     }
-    return JSON.parse(stdout);
+    return JSON.parse(stdout).map(normalizeBuildInfo);
 }
 /**
  * Create an new EAS build using the user-provided command.
@@ -98506,7 +98519,7 @@ async function createEasBuildFromRawCommandAsync(cwd, command, extraArgs = []) {
     catch (error) {
         throw new Error(`Could not run command eas build`, { cause: error });
     }
-    return JSON.parse(stdout);
+    return JSON.parse(stdout).map(normalizeBuildInfo);
 }
 /**
  * Cancel an EAS build.
@@ -98528,7 +98541,7 @@ async function queryEasBuildInfoAsync(cwd, buildId) {
             cwd,
             silent: true,
         });
-        return JSON.parse(stdout);
+        return normalizeBuildInfo(JSON.parse(stdout));
     }
     catch (error) {
         (0, core_1.info)(`Failed to query eas build ${buildId}: ${String(error)}`);

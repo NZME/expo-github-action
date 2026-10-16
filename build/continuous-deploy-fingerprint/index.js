@@ -34893,6 +34893,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.appPlatformEmojis = exports.appPlatformDisplayNames = exports.BuildStatus = exports.AppPlatform = void 0;
+exports.normalizeBuildInfo = normalizeBuildInfo;
 exports.parseCommand = parseCommand;
 exports.authenticate = authenticate;
 exports.projectOwner = projectOwner;
@@ -34928,6 +34929,18 @@ var BuildStatus;
     BuildStatus["Finished"] = "FINISHED";
     BuildStatus["Canceled"] = "CANCELED";
 })(BuildStatus || (exports.BuildStatus = BuildStatus = {}));
+/** Normalize the build JSON returned by EAS CLI 22+ to the existing action format. */
+function normalizeBuildInfo(build) {
+    if ('project' in build) {
+        return build;
+    }
+    return {
+        ...build,
+        project: build.app,
+        channel: build.updateChannel?.name ?? '',
+        runtimeVersion: build.runtime?.version,
+    };
+}
 exports.appPlatformDisplayNames = {
     [AppPlatform.Android]: 'Android',
     [AppPlatform.Ios]: 'iOS',
@@ -35010,7 +35023,7 @@ async function easBuild(cmd) {
     catch (error) {
         throw new Error(`Could not run command eas build`, { cause: error });
     }
-    return JSON.parse(stdout);
+    return JSON.parse(stdout).map(normalizeBuildInfo);
 }
 /**
  * Create an new EAS build using the user-provided command.
@@ -35035,7 +35048,7 @@ async function createEasBuildFromRawCommandAsync(cwd, command, extraArgs = []) {
     catch (error) {
         throw new Error(`Could not run command eas build`, { cause: error });
     }
-    return JSON.parse(stdout);
+    return JSON.parse(stdout).map(normalizeBuildInfo);
 }
 /**
  * Cancel an EAS build.
@@ -35057,7 +35070,7 @@ async function queryEasBuildInfoAsync(cwd, buildId) {
             cwd,
             silent: true,
         });
-        return JSON.parse(stdout);
+        return normalizeBuildInfo(JSON.parse(stdout));
     }
     catch (error) {
         (0, core_1.info)(`Failed to query eas build ${buildId}: ${String(error)}`);
@@ -35256,7 +35269,7 @@ async function getBuildInfoWithFingerprintAsync({ cwd, platform, profile, finger
         const isValidExpiry = excludeExpiredBuilds ? new Date(build.expirationDate) > tomorrow : true;
         return isValidStatus && isValidExpiry;
     });
-    return buildsThatAreValid[0] ?? null;
+    return buildsThatAreValid[0] ? (0, expo_1.normalizeBuildInfo)(buildsThatAreValid[0]) : null;
 }
 
 
@@ -37663,7 +37676,7 @@ async function createEASBuildAsync({ cwd, profile, platform, autoSubmit, }) {
             cwd,
             silent: !(0, core_1.isDebug)(),
         });
-        return JSON.parse(stdout)[0];
+        return (0, expo_1.normalizeBuildInfo)(JSON.parse(stdout)[0]);
     }
     catch (error) {
         throw new Error(`Error running eas build command: ${String(error)}`, { cause: error });
